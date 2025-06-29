@@ -1,2 +1,3 @@
 .venv/
 config.js
+.DS_Store
