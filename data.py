@@ -27,13 +27,13 @@ def redistribute(data, name, perc):
     data[name] = 0
 
 def run_rcv(data):
-    data["Inactive"] = 0
-
-    redistribute(data, "Brad Lander", [0.7, 0.2, 0.1])
+    redistribute(data, "Brad Lander", [0.6, 0.2, 0.2])
     redistribute(data, "Adrienne E. Adams", [0.5, 0.2, 0.3])
-    redistribute(data, "Scott M. Stringer", [0.4, 0.3, 0.3])
+    redistribute(data, "Scott M. Stringer", [0.3, 0.4, 0.3])
     redistribute(data, "Zellnor Myrie", [0.2, 0.4, 0.4])
-    redistribute(data, "Whitney R. Tilson", [0.9, 0.0, 0.1])
+    redistribute(data, "Whitney R. Tilson", [0.0, 0.9, 0.1])
+    redistribute(data, "Michael Blake", [0.6, 0.1, 0.3])
+    redistribute(data, "Jessica Ramos", [0.5, 0.2, 0.3])
 
 def create_data(url: str, name: str, ad=-1) -> pd.DataFrame:
     html = requests.get(url).text
@@ -57,13 +57,14 @@ def create_data(url: str, name: str, ad=-1) -> pd.DataFrame:
     columns.insert(0, name)
     data = pd.DataFrame.from_dict(raw_data_dict, orient='index', columns=columns)
     total = data.sum(axis=1, numeric_only=True)
+    data["Inactive"] = 0
+    run_rcv(data)
     data["Winner"] = np.where(data.max(axis=1, numeric_only=True) != 0, data.idxmax(axis=1, numeric_only=True), "None")
     data["Total"] = total
-    run_rcv(data)
 
-    top_2 = data[data.columns[1:-3]].apply(lambda row: row.nlargest(2).values, axis=1)
+    top_2 = (data[candidates[1:]]).apply(lambda row: row.nlargest(2).values, axis=1)
     data["WinnerPrc"] = (top_2.apply(lambda row: row[0] - row[1]) / data["Total"]).round(4)
-    return data
+    return data[:-1]
 
 def merge_with_geojson(data: pd.DataFrame, shapefile_path: str, merge_key: str, output_path: str):
     geo = gpd.read_file(shapefile_path).to_crs(epsg=4326)
