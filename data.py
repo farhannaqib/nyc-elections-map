@@ -18,7 +18,22 @@ def clean(cell_text: str, ad=-1):
         cell_text = int(cell_text[-2:])
     elif cell_text.startswith("ED"):
         cell_text = 1000 * ad + int(cell_text[-2:])
-    return cell_text    
+    return cell_text  
+
+def redistribute(data, name, perc):
+    data["Zohran Kwame Mamdani"] += round(perc[0] * data[name])
+    data["Andrew M. Cuomo"] += round(perc[1] * data[name])
+    data["Inactive"] += round(perc[2] * data[name])
+    data[name] = 0
+
+def run_rcv(data):
+    data["Inactive"] = 0
+
+    redistribute(data, "Brad Lander", [0.7, 0.2, 0.1])
+    redistribute(data, "Adrienne E. Adams", [0.5, 0.2, 0.3])
+    redistribute(data, "Scott M. Stringer", [0.4, 0.3, 0.3])
+    redistribute(data, "Zellnor Myrie", [0.2, 0.4, 0.4])
+    redistribute(data, "Whitney R. Tilson", [0.9, 0.0, 0.1])
 
 def create_data(url: str, name: str, ad=-1) -> pd.DataFrame:
     html = requests.get(url).text
@@ -33,7 +48,7 @@ def create_data(url: str, name: str, ad=-1) -> pd.DataFrame:
     votes = []
     for row in rows:
         row_data = [clean(cell.text, ad) for cell in row.find_all('td') if cell.text != '\xa0']
-        if row_data[0] != 'Total':
+        if row_data[0] != 'Total': # We can recalculate total later, this is to ignore ED
             row_data.remove(row_data[1]) # % of votes reported, i dont rlly care about this
         votes.append(row_data)
 
@@ -41,36 +56,27 @@ def create_data(url: str, name: str, ad=-1) -> pd.DataFrame:
     columns = candidates
     columns.insert(0, name)
     data = pd.DataFrame.from_dict(raw_data_dict, orient='index', columns=columns)
-    # data["Zohran Kwame Mamdani"] += (0.6 * data["Brad Lander"] + 0.5 * data["Adrienne E. Adams"])
-    # data["Andrew M. Cuomo"] += (0.2 * data["Brad Lander"] + 0.2 * data["Adrienne E. Adams"] + data["Whitney R. Tilson"])
-    # data["Brad Lander"] = 0
-    # data["Adrienne E. Adams"] = 0
-    # data["Whitney R. Tilson"] = 0
+    total = data.sum(axis=1, numeric_only=True)
     data["Winner"] = np.where(data.max(axis=1, numeric_only=True) != 0, data.idxmax(axis=1, numeric_only=True), "None")
-    data["Total"] = data.sum(axis=1, numeric_only=True)
-    top_2 = data[data.columns[1:-2]].apply(lambda row: row.nlargest(2).values, axis=1)
+    data["Total"] = total
+    run_rcv(data)
+
+    top_2 = data[data.columns[1:-3]].apply(lambda row: row.nlargest(2).values, axis=1)
     data["WinnerPrc"] = (top_2.apply(lambda row: row[0] - row[1]) / data["Total"]).round(4)
     return data
 
+def merge_with_geojson(data: pd.DataFrame, shapefile_path: str, merge_key: str, output_path: str):
+    geo = gpd.read_file(shapefile_path).to_crs(epsg=4326)
+    geo_data = geo.merge(data, on=merge_key)
+    geo_data.to_file(output_path, driver='GeoJSON')
+
 def create_borough_geojson(url: str):
     data = create_data(url, "BoroName")
-
-    boroughs = gpd.read_file("nybb_25b/nybb.dbf")
-    boroughs = boroughs.to_crs(epsg=4326)
-    borough_data = boroughs.merge(data, on="BoroName")
-    # print(borough_data)
-
-    borough_data.to_file('data/boroughs.geojson', driver='GeoJSON')
+    merge_with_geojson(data, "data/nybb_25b/nybb.dbf", "BoroName", "data/boroughs.geojson")
 
 def create_ad_geojson(url: str):
     data = create_data(url, "AssemDist")
-
-    ad = gpd.read_file("nyad_25b/nyad.dbf")
-    ad = ad.to_crs(epsg=4326)
-    ad_data = ad.merge(data, on="AssemDist")
-    # print(ad_data)
-
-    ad_data.to_file('data/ad.geojson', driver='GeoJSON')
+    merge_with_geojson(data, "data/nyad_25b/nyad.dbf", "AssemDist", "data/ad.geojson")
 
 def create_ed_geojson():
     data = pd.DataFrame()
@@ -79,13 +85,9 @@ def create_ed_geojson():
         data = pd.concat([data, create_data(url, "ElectDist", ad)])
         print(url)
     print(data)
+    print(data.sum(axis=0, numeric_only=True))
 
-    ed = gpd.read_file("nyed_25b/nyed.dbf")
-    ed = ed.to_crs(epsg=4326)
-    ed_data = ed.merge(data, on="ElectDist")
-    print(ed_data)
-
-    ed_data.to_file('data/ed.geojson', driver='GeoJSON')
+    merge_with_geojson(data, "data/nyed_25b/nyed.dbf", "ElectDist", "data/ed.geojson")
 
 
 borough_url = "https://enr.boenyc.gov/CD26916ADI0.html"
