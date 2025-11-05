@@ -18,7 +18,7 @@ def clean(cell_text: str, ad=-1):
         cell_text = int(cell_text[-2:])
     elif cell_text.startswith("ED"):
         cell_text = 1000 * ad + int(cell_text[-2:])
-    return cell_text  
+    return cell_text
 
 def redistribute(data, name, perc):
     data["Zohran Kwame Mamdani"] += round(perc[0] * data[name])
@@ -26,23 +26,15 @@ def redistribute(data, name, perc):
     data["Inactive"] += round(perc[2] * data[name])
     data[name] = 0
 
-def run_rcv(data):
-    redistribute(data, "Brad Lander", [0.6, 0.2, 0.2])
-    redistribute(data, "Adrienne E. Adams", [0.5, 0.2, 0.3])
-    redistribute(data, "Scott M. Stringer", [0.3, 0.4, 0.3])
-    redistribute(data, "Zellnor Myrie", [0.2, 0.4, 0.4])
-    redistribute(data, "Whitney R. Tilson", [0.0, 0.9, 0.1])
-    redistribute(data, "Michael Blake", [0.6, 0.1, 0.3])
-    redistribute(data, "Jessica Ramos", [0.5, 0.2, 0.3])
-
 def create_data(url: str, name: str, ad=-1) -> pd.DataFrame:
     html = requests.get(url).text
     soup = BeautifulSoup(html, 'html.parser')
     # print(soup.prettify())
 
     table = soup.find('table', class_='underline')
+    # print(table)
     rows = table.find_all('tr')
-    candidates = [clean(cell.text, ad) for cell in rows[0].find_all('td') if cell.text != '\xa0'][0:12]
+    candidates = [clean(cell.text, ad) for cell in rows[0].find_all('td') if cell.text != '\xa0'][0:10]
     rows.remove(rows[0]) # candidates
     rows.remove(rows[0]) # party affiliation
     votes = []
@@ -52,27 +44,37 @@ def create_data(url: str, name: str, ad=-1) -> pd.DataFrame:
             row_data.remove(row_data[1]) # % of votes reported, i dont rlly care about this
         votes.append(row_data)
 
+    # print(votes)
     raw_data_dict = dict(zip([i for i in range(len(votes))], votes))
     columns = candidates
     columns.insert(0, name)
     data = pd.DataFrame.from_dict(raw_data_dict, orient='index', columns=columns)
     total = data.sum(axis=1, numeric_only=True)
+    data = data.replace('-', 0).apply(pd.to_numeric, errors='ignore')
+    data = data.groupby(data.columns, axis=1).sum()
     data["Inactive"] = 0
-    run_rcv(data)
+    # run_rcv(data)
     data["Winner"] = np.where(data.max(axis=1, numeric_only=True) != 0, data.idxmax(axis=1, numeric_only=True), "None")
     data["Total"] = total
 
     top_2 = (data[candidates[1:]]).apply(lambda row: row.nlargest(2).values, axis=1)
     data["WinnerPrc"] = (top_2.apply(lambda row: row[0] - row[1]) / data["Total"]).round(4)
+    # data = data.loc[:,~data.columns.duplicated()].copy()
+
+    # cols_to_print = ["BoroName", "Zohran Kwame Mamdani", "Curtis A. Sliwa", "Andrew M. Cuomo"]
+
+    # print(data[cols_to_print])
     return data[:-1]
 
 def merge_with_geojson(data: pd.DataFrame, shapefile_path: str, merge_key: str, output_path: str):
     geo = gpd.read_file(shapefile_path).to_crs(epsg=4326)
     geo_data = geo.merge(data, on=merge_key)
+    print(geo_data)
     geo_data.to_file(output_path, driver='GeoJSON')
 
 def create_borough_geojson(url: str):
     data = create_data(url, "BoroName")
+    print("BOROUGH DATA DONE")
     merge_with_geojson(data, "data/nybb_25b/nybb.dbf", "BoroName", "data/boroughs.geojson")
 
 def create_ad_geojson(url: str):
@@ -82,7 +84,7 @@ def create_ad_geojson(url: str):
 def create_ed_geojson():
     data = pd.DataFrame()
     for ad in range(23, 88):
-        url = f"https://enr.boenyc.gov/CD26916AD{ad}0.html"
+        url = f"https://enr.boenyc.gov/CD27286AD{ad}0.html"
         data = pd.concat([data, create_data(url, "ElectDist", ad)])
         print(url)
     print(data)
@@ -91,10 +93,13 @@ def create_ed_geojson():
     merge_with_geojson(data, "data/nyed_25b/nyed.dbf", "ElectDist", "data/ed.geojson")
 
 
-borough_url = "https://enr.boenyc.gov/CD26916ADI0.html"
-ad_url = "https://enr.boenyc.gov/CD26916AD0.html"
+borough_url = "https://enr.boenyc.gov/CD27286ADI0.html"
+ad_url = "https://enr.boenyc.gov/CD27286AD0.html"
 
 
+print("BOROUGH")
 create_borough_geojson(borough_url)
+print("AD")
 create_ad_geojson(ad_url)
+print("ED")
 create_ed_geojson()

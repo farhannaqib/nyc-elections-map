@@ -38,9 +38,8 @@ map.on("load", () => {
                 "fill-color": [
                     "match",
                     ["get", "Winner"],
-                    "Andrew M. Cuomo", "#15467c",
-                    "Zohran Kwame Mamdani", "#ffaa03",
-                    "Brad Lander", "#078207",
+                    "Andrew M. Cuomo", "#ffaa03",
+                    "Zohran Kwame Mamdani", "#15467c",
                     "#ffffff",
                 ],
                 "fill-outline-color": "#ffffff",
@@ -90,9 +89,8 @@ map.on("load", () => {
                 "fill-color": [
                     "match",
                     ["get", "Winner"],
-                    "Andrew M. Cuomo", "#15467c",
-                    "Zohran Kwame Mamdani", "#ffaa03",
-                    "Brad Lander", "#078207",
+                    "Andrew M. Cuomo", "#ffaa03",
+                    "Zohran Kwame Mamdani", "#15467c",
                     "#ffffff",
                 ],
                 "fill-outline-color": "#ffffff",
@@ -117,7 +115,7 @@ map.on("load", () => {
             type: "line",
             source: {
                 type: "geojson",
-                data: "data/ed.geojson",
+                data: "data/ed.geojson?v=" + Date.now(),
             },
             minzoom: 9.5,
             paint: {
@@ -133,16 +131,15 @@ map.on("load", () => {
             type: "fill",
             source: {
                 type: "geojson",
-                data: "data/ed.geojson",
+                data: "data/ed.geojson?v=" + Date.now(),
             },
             minzoom: 9.5,
             paint: {
                 "fill-color": [
                     "match",
                     ["get", "Winner"],
-                    "Andrew M. Cuomo", "#15467c",
-                    "Zohran Kwame Mamdani", "#ffaa03",
-                    "Brad Lander", "#078207",
+                    "Andrew M. Cuomo", "#ffaa03",
+                    "Zohran Kwame Mamdani", "#15467c",
                     "#ffffff",
                 ],
                 "fill-outline-color": "#ffffff",
