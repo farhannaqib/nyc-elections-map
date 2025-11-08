@@ -52,13 +52,13 @@ def create_data(url: str, name: str, ad=-1) -> pd.DataFrame:
     total = data.sum(axis=1, numeric_only=True)
     data = data.replace('-', 0).apply(pd.to_numeric, errors='ignore')
     data = data.groupby(data.columns, axis=1).sum()
-    data["Inactive"] = 0
     # run_rcv(data)
     data["Winner"] = np.where(data.max(axis=1, numeric_only=True) != 0, data.idxmax(axis=1, numeric_only=True), "None")
     data["Total"] = total
 
     top_2 = (data[candidates[1:]]).apply(lambda row: row.nlargest(2).values, axis=1)
     data["WinnerPrc"] = (top_2.apply(lambda row: row[0] - row[1]) / data["Total"]).round(4)
+    print(data)
     # data = data.loc[:,~data.columns.duplicated()].copy()
 
     # cols_to_print = ["BoroName", "Zohran Kwame Mamdani", "Curtis A. Sliwa", "Andrew M. Cuomo"]
@@ -69,7 +69,7 @@ def create_data(url: str, name: str, ad=-1) -> pd.DataFrame:
 def merge_with_geojson(data: pd.DataFrame, shapefile_path: str, merge_key: str, output_path: str):
     geo = gpd.read_file(shapefile_path).to_crs(epsg=4326)
     geo_data = geo.merge(data, on=merge_key)
-    print(geo_data)
+    # print(geo_data)
     geo_data.to_file(output_path, driver='GeoJSON')
 
 def create_borough_geojson(url: str):
@@ -87,8 +87,8 @@ def create_ed_geojson():
         url = f"https://enr.boenyc.gov/CD27286AD{ad}0.html"
         data = pd.concat([data, create_data(url, "ElectDist", ad)])
         print(url)
-    print(data)
-    print(data.sum(axis=0, numeric_only=True))
+    # print(data)
+    # print(data.sum(axis=0, numeric_only=True))
 
     merge_with_geojson(data, "data/nyed_25b/nyed.dbf", "ElectDist", "data/ed.geojson")
 
